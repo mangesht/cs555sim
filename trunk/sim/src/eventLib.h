@@ -1,10 +1,17 @@
+#ifndef _EVENTLIB_
+#define _EVENTLIB_
+
 #include<stdio.h>
 #include<math.h>
 #include<stdlib.h>
 
+typedef enum {ARRIVAL,SERVICED,COLLECT_STAT} eventTypedef;
 class Event {
     public :
     double schedTime;
+    eventTypedef eventType;
+    int serverId;
+    // Link management variables
     Event *next;
     Event *prev;
     Event(){
@@ -32,7 +39,30 @@ public :
         tail  = NULL;
     }
 };
+struct Packet{
+    double arrivalTime;
+    double serviceStartTime;
+    double serviceFinishTime;
+};
 
+class PacketQ{
+    public:
+    int maxSize;
+    int curSize;
+    struct Packet **pkt;
+    int push(struct Packet *p);
+    struct Packet * pop();
+    int head;
+    int tail;
+    void displayAll();
+    PacketQ(int sz){
+        head = 0;
+        tail = 0;
+        curSize = 0 ; 
+        maxSize = sz;
+        pkt = (struct Packet **) malloc(maxSize * sizeof(struct Packet *));
+    }
+};
 int LinkedList::insert_sort(Event *item){
     if (item == NULL) {
         return -1;
@@ -132,3 +162,45 @@ void LinkedList::displayAll(){
     }
     printf(" NULL \n");
 }
+
+int PacketQ::push(struct Packet *p){
+    if(p == NULL) {
+        printf("Pushing NULL \n");
+    }
+    if( (p == NULL)||(curSize == maxSize))
+        return -1;
+    pkt[tail] = p;
+    if(tail == maxSize-1){
+        tail = 0 ; 
+    }else{
+        tail++;
+    }
+    curSize++;
+    return 0;
+}
+struct Packet* PacketQ::pop(){
+    struct Packet *p;
+    if (curSize == 0 )
+        return NULL;
+    p = pkt[head];
+    if(head == maxSize-1){
+        head = 0;
+    }else{
+        head++;
+    }
+    curSize--;
+    return p;
+}
+void PacketQ::displayAll(){
+    int i;
+    int idx;
+    idx=head;
+    printf("Packet Queue status \n");
+    for(i=0;i<curSize;i++){
+        printf(" %lf <- ",pkt[idx++]->arrivalTime);
+        if(idx == maxSize) idx=0;
+    }
+    printf("\n");
+}
+
+#endif
