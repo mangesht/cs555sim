@@ -1,4 +1,4 @@
-#GNUplot script file for plotting x(t) for different integrations steps
+#GNUplot script file for plotting Distribution of random number generator
 # x0
 unset log
 unset label
