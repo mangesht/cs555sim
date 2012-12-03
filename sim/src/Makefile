@@ -9,4 +9,6 @@ unif_graph:randAdv_test
 	gnuplot ../scripts/r10m.p
 	./randAdv_test -d 1000 -i 1000000 > r1m.out
 	gnuplot ../scripts/r1m.p
-	
+
+clean: 
+	rm -f r10m.out r1m.out *.gif *.png randAdv_test sim	
