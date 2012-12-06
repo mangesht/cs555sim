@@ -70,17 +70,17 @@ int LinkedList::insert_sort(Event *item){
     // If the list is empty add at first position and initialize pointers
 
     if(start == NULL) {
-        printf("Adding first item\n");
+        //printf("Adding first item\n");
         start = item;
         tail = item;
         cur = item;
     }else{
         // Search the list from last position
         // Find appropriate location for the new event and place it there
-        printf("Inserting \n");
+        //printf("Inserting \n");
         if(cur->schedTime > item->schedTime) {
             // Search in backward direction
-            printf("In backward direction \n");
+            //printf("In backward direction \n");
             while( (cur != start) && (cur->schedTime > item->schedTime)){
                     cur = cur->prev;
             }
@@ -91,20 +91,20 @@ int LinkedList::insert_sort(Event *item){
             }
         }else{
             // Search in forward direction
-            printf("In forward direction \n");
+            //printf("In forward direction \n");
             while( (cur != tail) && (cur->schedTime < item->schedTime)){
                 cur = cur->next;
             }
             if((cur == tail) && cur->schedTime < item->schedTime){
-                printf("Calling after \n");
+                //printf("Calling after \n");
                 insert_after(tail,item);
             }else{
-                printf("Calling before \n");
+                //printf("Calling before \n");
                 insert_before(cur,item);
             }
         }
     }
-    printf("Insertion done \n");
+    //printf("Insertion done \n");
     return 0;
 }
 
@@ -142,7 +142,7 @@ int LinkedList::insert_before(Event *pos,Event *item){
     item->next = pos;
     item->prev = pos->prev;
     if(start != NULL) { 
-        printf("Start = %lf tail = %lf pos = %lf item = %lf \n",start->schedTime,tail->schedTime,pos->schedTime,item->schedTime);
+        //printf("Start = %lf tail = %lf pos = %lf item = %lf \n",start->schedTime,tail->schedTime,pos->schedTime,item->schedTime);
     }
     if(pos == start) {
         start = item;
