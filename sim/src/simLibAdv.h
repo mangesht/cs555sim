@@ -7,11 +7,16 @@ typedef enum {BUSY,IDLE} serverStatusType;
 class RandomGen{
     int last_rand;
     struct random_data *rand_state;
+    char *state;
+    char *ret;
     public:
     void set_seed(int seed);
     void randomize_seed(int seed=-1);
     double rand_d();
     RandomGen(int seed){
+        rand_state = (struct random_data *) malloc(sizeof(struct random_data));
+        state = (char *) malloc(512);
+        ret = (char *) malloc(512);
         last_rand = seed;
     }
 };
@@ -72,17 +77,14 @@ double Server::getServiceTime(){
 
 void RandomGen::set_seed(int seed) {
 
-    char *state;
-    char *ret;
-    state = (char *) malloc(512);
-    ret = (char *) malloc(512);
-/*
     ret = initstate(seed,state,64);
     printf("\nUsing seed = %d \n",seed);
+/*
     last_rand = seed;
 */
-    rand_state = (struct random_data *) malloc(sizeof(struct random_data));
+    //rand_state = (struct random_data *) malloc(sizeof(struct random_data));
     int r= initstate_r(seed,state,64,rand_state);
+    printf("Set seed Done \n");
 
 }
 void RandomGen::randomize_seed(int seed){
