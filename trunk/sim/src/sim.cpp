@@ -8,11 +8,11 @@
 #define BUFFER_SIZE 5
 
 LinkedList el; // This is event list sorted  
-Server server[NUM_SERVERS];
-InputStream inStr(-1);
+Server *server[NUM_SERVERS];
+InputStream *inStr;
 PacketQ *pktBuffer;
 double curTime;
-
+int debug=0;
 void initialize();
 void processEvent(Event *ep);
 void startServicing();
@@ -31,22 +31,24 @@ int main(){
    
     //pktBuffer = (Packet **) malloc(BUFFER_SIZE*sizeof(Packet *)) 
     pktBuffer = new PacketQ(10); // size of the pktBuffer
+    inStr = new InputStream(-1);
     for(i=0;i<NUM_SERVERS;i++){
-        //server[i] = new Server(-1);
-        server[i].rng->randomize_seed(-1); // Mangesh Fix this
+        server[i] = new Server(-1);
+        //server[i].rng->randomize_seed(-1); // Mangesh Fix this
     }
    
     initialize();
 
-    for(itr=0;itr<num_iterations;itr++){
+    //for(itr=0;itr<num_iterations;itr++){
+    while(curTime < 10) {
         ep = el.pop();
         curTime = ep->schedTime;
         printf("Time : %lf \n",curTime);
         processEvent(ep);
-        printf("processEvent ended \n");
+        if(debug) printf("processEvent ended \n");
         free(ep);
         startServicing();
-        printf("Service Ended \n");
+        if(debug) printf("Service Ended \n");
     } 
     return 0;
 }
@@ -55,14 +57,14 @@ void initialize(){
     int i;
     double ar;
     Event *ep;
-    inStr.setArrivalRate(5);
+    inStr->setArrivalRate(5);
     curTime = 0.0;
     printf("initialize started \n");
     for(i=0;i<NUM_SERVERS;i++){
-        server[i].setServiceRate(8);
+        server[i]->setServiceRate(8);
     }
     // Plan first arrival
-    ar = inStr.getArrivalInterval();
+    ar = inStr->getArrivalInterval();
     ep = new Event();
     ep->schedTime = curTime + ar ; 
     ep->eventType = ARRIVAL;
@@ -94,7 +96,7 @@ void processArrival(Event *ep){
     }
 
     // Plan next arrival 
-    ar = inStr.getArrivalInterval();
+    ar = inStr->getArrivalInterval();
     earp = new Event();
     earp->schedTime = curTime + ar ; 
     earp->eventType = ARRIVAL;
@@ -103,9 +105,9 @@ void processArrival(Event *ep){
 }
 
 void processServiced(Event *ep){
-    printf("processServiced \n");
-    server[ep->serverId].status = IDLE;
-    printf("processServiced end\n");
+    if(debug) printf("processServiced %d \n",ep->serverId);
+    server[ep->serverId]->status = IDLE;
+    if(debug) printf("processServiced end\n");
     //server[ep->serverId]->servP.serviceFinishTime = curTime; // This can used for stats
 }
 
@@ -116,9 +118,9 @@ void startServicing(){
     struct Packet *p;
     Event *ep;
     idx = random() % NUM_SERVERS; 
-    printf("startServicing \n");
+    if(debug) printf("startServicing \n");
     for(i=0;i<NUM_SERVERS;i++){
-        if(server[idx].status == IDLE){
+        if(server[idx]->status == IDLE){
             p = pktBuffer->pop();
             if(p==NULL) {
                 // Buffer empty
@@ -126,13 +128,14 @@ void startServicing(){
             }else{
                 // Start service for this Packet 
                 ep = new Event();
-                serviceTime = server[idx].getServiceTime();
+                serviceTime = server[idx]->getServiceTime();
                 ep->schedTime = curTime + serviceTime;
                 ep->eventType = SERVICED;
+                ep->serverId = idx;
                 p->serviceStartTime = curTime;
                 el.insert_sort(ep);
-                server[idx].servP = p;
-                server[idx].status = BUSY;
+                server[idx]->servP = p;
+                server[idx]->status = BUSY;
                 printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,idx,ep->schedTime);
             }
         }
