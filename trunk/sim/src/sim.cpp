@@ -19,6 +19,7 @@ void startServicing();
 void processArrival(Event *ep);
 void processServiced(Event *ep);
 void collectStat(Event *ep) {
+
 }
 
 int main(){
@@ -31,6 +32,7 @@ int main(){
     //pktBuffer = (Packet **) malloc(BUFFER_SIZE*sizeof(Packet *)) 
     pktBuffer = new PacketQ(10); // size of the pktBuffer
     for(i=0;i<NUM_SERVERS;i++){
+        //server[i] = new Server(-1);
         server[i].rng->randomize_seed(-1); // Mangesh Fix this
     }
    
@@ -41,8 +43,10 @@ int main(){
         curTime = ep->schedTime;
         printf("Time : %lf \n",curTime);
         processEvent(ep);
+        printf("processEvent ended \n");
         free(ep);
         startServicing();
+        printf("Service Ended \n");
     } 
     return 0;
 }
@@ -53,7 +57,7 @@ void initialize(){
     Event *ep;
     inStr.setArrivalRate(5);
     curTime = 0.0;
-
+    printf("initialize started \n");
     for(i=0;i<NUM_SERVERS;i++){
         server[i].setServiceRate(8);
     }
@@ -99,7 +103,9 @@ void processArrival(Event *ep){
 }
 
 void processServiced(Event *ep){
-    server[ep->serverId] = IDLE;
+    printf("processServiced \n");
+    server[ep->serverId].status = IDLE;
+    printf("processServiced end\n");
     //server[ep->serverId]->servP.serviceFinishTime = curTime; // This can used for stats
 }
 
@@ -110,6 +116,7 @@ void startServicing(){
     struct Packet *p;
     Event *ep;
     idx = random() % NUM_SERVERS; 
+    printf("startServicing \n");
     for(i=0;i<NUM_SERVERS;i++){
         if(server[idx].status == IDLE){
             p = pktBuffer->pop();
@@ -125,7 +132,7 @@ void startServicing(){
                 p->serviceStartTime = curTime;
                 el.insert_sort(ep);
                 server[idx].servP = p;
-                server[idx] = BUSY;
+                server[idx].status = BUSY;
                 printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,idx,ep->schedTime);
             }
         }
