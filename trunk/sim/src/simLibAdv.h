@@ -1,6 +1,7 @@
 #include<time.h>
 #include<math.h>
 #include<stdlib.h>
+#include<string.h>
 #include "eventLib.h"
 typedef enum {BUSY,IDLE} serverStatusType;
 
@@ -111,3 +112,30 @@ double RandomGen::rand_d() {
     return d_div;
 }
 
+double ator(char *str){
+    double ret = 0;
+    int len;
+    int i;
+    int locAfDecPoint=0;
+    int sgn = 1;
+    int decEnable = 0; 
+    len = strlen(str);
+    //printf("String len = %d \n",len);
+    if(str[0] == '-'){
+         sgn = -1;
+    }
+    for(i=0;i<len;i++){
+        if( (str[i] >= '0' && str[i] <='9') || (i==0 && str[i] == '-') || (str[i] == '.')){
+            // This valid number
+            if(str[i] == '-') continue;
+            if(str[i] == '.') { decEnable = 1 ; continue ;}
+            ret = ret * 10 + str[i] - '0';
+            if (decEnable == 1) locAfDecPoint++;
+        }else{
+            printf("ERROR:Invalid real number %c \n",str[i]);
+            return -1;
+        }
+    }
+    ret = ret / pow((double)10,(double)locAfDecPoint) ; 
+    return ret;
+}

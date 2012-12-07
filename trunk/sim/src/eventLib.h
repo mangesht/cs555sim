@@ -31,6 +31,7 @@ private :
 public :
     int insert_sort(Event *item);
     Event *pop();
+    void clean();
     void displayAll();
 
     LinkedList(){
@@ -49,12 +50,16 @@ class PacketQ{
     public:
     int maxSize;
     int curSize;
-    struct Packet **pkt;
-    int push(struct Packet *p);
-    struct Packet * pop();
     int head;
     int tail;
+
+    struct Packet **pkt;
+
+    int push(struct Packet *p);
+    struct Packet * pop();
     void displayAll();
+    void clean();
+
     PacketQ(int sz){
         head = 0;
         tail = 0;
@@ -123,6 +128,13 @@ Event * LinkedList::pop(){
     return ret;
 }
 
+void LinkedList::clean(){
+    Event *p;
+    do{
+        p = pop();
+    }while(p!= NULL);
+
+}
 
 int LinkedList::insert_after(Event *pos,Event *item){
     
@@ -190,6 +202,12 @@ struct Packet* PacketQ::pop(){
     }
     curSize--;
     return p;
+}
+void PacketQ::clean(){
+    struct Packet *p;
+    do{
+        p = pop();
+    }while(p!= NULL);
 }
 void PacketQ::displayAll(){
     int i;
