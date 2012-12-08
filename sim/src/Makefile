@@ -1,6 +1,9 @@
 randAdv_test:randAdv_test.cpp simLibAdv.h
 	g++ -o randAdv_test randAdv_test.cpp 
 
+randNumSeq_compare: randNumSeq_compare.cpp simLibAdv.h
+	g++ -o randNumSeq_compare randNumSeq_compare.cpp
+
 sim:sim.cpp
 	g++ -o sim sim.cpp -lm
  
