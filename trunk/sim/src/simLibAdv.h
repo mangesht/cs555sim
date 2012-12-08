@@ -60,6 +60,7 @@ class Server{
     int setServiceRate(double sr){
         service_rate = sr;
         service_time = 1 /sr;
+        printf("service time = %lf \n",service_time);
         return 0;
     }
 };

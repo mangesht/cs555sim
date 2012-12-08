@@ -28,6 +28,11 @@ int statCollectIdx = 0;
 int simIdx = 0 ; 
 int numCustomers[MAX_SIM_RUNS][NUM_OBSEVATIONS];
 double avgNumCustomers[NUM_OBSEVATIONS]; 
+int windowSize = 5;
+long num_iterations = 20;
+double sIdleTime[NUM_SERVERS];
+double sIdlingStartTime[NUM_SERVERS];
+
 char *outFileName;
 
 void initialize();
@@ -37,7 +42,8 @@ void processArrival(Event *ep);
 void processServiced(Event *ep);
 void reset();
 void calc_mean();
-void print_to_file();
+void filter_lpf(int windowSize);
+void print_to_file(char*);
 void collectStat() {
     Event *ecstat;
     int num_cust=0;
@@ -54,12 +60,13 @@ void collectStat() {
     ecstat->schedTime = curTime + statCollectInterval ; 
     ecstat->eventType = COLLECT_STAT;
     el.insert_sort(ecstat);
-    printf("Added arrival for time %lf \n",ecstat->schedTime);
+    printf("Added data collection event %lf \n",ecstat->schedTime);
 
 }
 
 void display_help(){
-   printf("\n Usage : sim [-s1 seed] [-s2 seed] [-s3 seed][-lambda lambda] [-u mu] [-ic initialNumCust] [-et simEndTime\n");
+   printf("\n Usage : sim [-s1 seed] [-s2 seed] [-s3 seed][-lambda lambda] [-u mu] [-ic initialNumCust] [-et simEndTime]\n");
+   printf("[-w windowSize] [-itr num_iterations] [-h] [-sci statCollectInterval");
 }
 int main(int argc,char *argv[]){
 
@@ -67,7 +74,6 @@ int main(int argc,char *argv[]){
 
     int i;
     long itr;
-    long num_iterations = 10;
     char *p;
     int agcCount = 1;
     int numSim;
@@ -119,6 +125,29 @@ int main(int argc,char *argv[]){
                 agcCount++;
             }
         }
+        if(strstr(p,"-w")!=NULL){
+            if(argc > agcCount+1) {
+                windowSize = atoi(argv[agcCount+1]);
+                agcCount++;
+            }
+        }
+        if(strstr(p,"-itr")!=NULL){
+            if(argc > agcCount+1) {
+                num_iterations = atoi(argv[agcCount+1]);
+                agcCount++;
+            }
+        }
+        if(strstr(p,"-h")!=NULL){
+            display_help();
+            return 0;
+        }
+        if(strstr(p,"-sci")!=NULL){
+            if(argc > agcCount+1) {
+               statCollectInterval  = ator(argv[agcCount+1]);
+               agcCount++;
+            }
+        }
+
 
         agcCount++;
     }
@@ -135,7 +164,7 @@ int main(int argc,char *argv[]){
     }
     
     reset();
-    for(numSim=0;numSim<10;numSim++) { 
+    for(numSim=0;numSim<num_iterations;numSim++) { 
 
     printf("--------------------------------------------------------------\n"); 
     printf("Starting simulation with : \n");
@@ -156,11 +185,21 @@ int main(int argc,char *argv[]){
         startServicing();
         if(debug) printf("Service Ended \n");
     } 
+    
+    for(i=0;i<NUM_SERVERS;i++){
+        printf("Server %d Idle time = %lf \n",i,sIdleTime[i]);
+    }
     simIdx++;
     }
 
     calc_mean();
-    print_to_file();
+    filter_lpf(windowSize);
+    char *prefix;
+    prefix = (char *) malloc(256); 
+    sprintf(prefix,"i%d_w%d",initialNumCust,windowSize);
+    print_to_file(prefix);
+    printf("Total number of iterations = %d \n",simIdx);
+
     return 0;
 }
 
@@ -177,6 +216,8 @@ void initialize(){
     printf("initialize started \n");
     for(i=0;i<NUM_SERVERS;i++){
         server[i]->setServiceRate(serviceRate);
+        server[i]->status = IDLE;
+        sIdlingStartTime[i] = curTime;
     }
     pktBuffer->clean();
     el.clean();
@@ -195,6 +236,7 @@ void initialize(){
                 el.insert_sort(ep);
                 server[i]->servP = p;
                 server[i]->status = BUSY;
+                sIdleTime[i] += curTime - sIdlingStartTime[i];
                 printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,i,ep->schedTime);
 
          }else{
@@ -254,6 +296,7 @@ void processArrival(Event *ep){
 void processServiced(Event *ep){
     if(debug) printf("processServiced %d \n",ep->serverId);
     server[ep->serverId]->status = IDLE;
+    sIdlingStartTime[ep->serverId] = curTime;
     free(server[ep->serverId]->servP); 
     if(debug) printf("processServiced end\n");
     //server[ep->serverId]->servP.serviceFinishTime = curTime; // This can used for stats
@@ -284,6 +327,7 @@ void startServicing(){
                 el.insert_sort(ep);
                 server[idx]->servP = p;
                 server[idx]->status = BUSY;
+                sIdleTime[idx] += curTime - sIdlingStartTime[idx];
                 printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,idx,ep->schedTime);
             }
         }
@@ -312,7 +356,19 @@ void calc_mean(){
         avgNumCustomers[i] = avgNumCustomers[i] / simIdx;
     } 
 }
-void print_to_file(){
+void filter_lpf(int windowSize){
+    int i;
+    int j;
+    double tsum;
+    for(i=0;i<statCollectIdx-windowSize+1;i++){
+       tsum = 0;
+        for(j=0;j<windowSize;j++){
+            tsum = tsum + avgNumCustomers[i+j];
+        }
+        avgNumCustomers[i] = tsum / windowSize; 
+    }
+}
+void print_to_file(char *postFix){
     char * charbuf;
     char * tbuf;
     FILE *fp;
@@ -322,13 +378,16 @@ void print_to_file(){
     charbuf = (char *) malloc(16);
     fName = (char *) malloc(256);
     strcpy(fName,outFileName);
+    if(postFix != NULL) 
+        if(strlen(postFix) != 0)
+            strcat(fName,postFix);
     strcat(fName,"avg.dat"); 
     fp = fopen(fName,"w");
     printf("Printting data for %d \n",statCollectIdx);
     if(fp == NULL) {
         printf("Could not open %s \n",fName);
     }
-    for(i=0;i<statCollectIdx;i++){
+    for(i=0;i<statCollectIdx-10;i++){
         fprintf(fp,"%lf %lf\n",statCollectInterval*i,avgNumCustomers[i]);
     }
     fclose(fp); 
