@@ -30,9 +30,11 @@ int main(int argc,char *argv[]){
     }
     double r_unit ;
     RandomGen rng(seed);
-    
-    double rnd_seq1[maxitems_in_seq];
-    double rnd_seq2[maxitems_in_seq]; //TODO  can be convered to a 2D array instead of two 1D arrays ?
+
+    double *rnd_seq1 = (double *)malloc(maxitems_in_seq*sizeof(double));;
+    double *rnd_seq2 = (double *)malloc(maxitems_in_seq*sizeof(double));;
+    // double rnd_seq1[maxitems_in_seq];
+    // double rnd_seq2[maxitems_in_seq]; //TODO  can be convered to a 2D array instead of two 1D arrays ?
 
     
     for (int j=0; j < num_seq; j++ ) {
