@@ -16,7 +16,7 @@ void Usage(){
 }
 
 int main(int argc,char *argv[]){
-    Usage();
+    // Usage();
     int num_seq=2;
     double r_d;
     unsigned int seed=0;
@@ -39,6 +39,7 @@ int main(int argc,char *argv[]){
     
     for (int j=0; j < num_seq; j++ ) {
 
+	printf("\n Generationg the Sequence %d\n",j+1); 
 	// Seed based on current time on every run
     	cur_t = time(NULL);
     	loc_t = localtime(&cur_t);
@@ -50,7 +51,7 @@ int main(int argc,char *argv[]){
     	rng.randomize_seed(seed);
     	r_d = rng.rand_d();
     	printf("Sample Rand Number = %lf \n",r_d);
-   
+  
 	// Generate and store random numbers	
 	for(int i=0;i<maxitems_in_seq;i++) {
 		// UGLY FIX ME
@@ -69,7 +70,7 @@ int main(int argc,char *argv[]){
 
     }
 
-
+	/* Commenting out print statement
       	printf("\nSequence 1 \n");
     	for(int i=0;i<maxitems_in_seq;i++){
         	printf("%f \n",rnd_seq1[i]);
@@ -80,10 +81,14 @@ int main(int argc,char *argv[]){
         for(int i=0;i<maxitems_in_seq;i++){
                 printf("%f \n",rnd_seq2[i]);
         }
+	*/
 
+	printf("\n Sorting the Sequence 1 \n");
 	qsort (rnd_seq1, maxitems_in_seq, sizeof(double), compare4qsort);
+	printf("\n Sorting the Sequence 2 \n");
 	qsort (rnd_seq2, maxitems_in_seq, sizeof(double), compare4qsort);
 
+	/* Commenting out print statement 
 	printf("\nSequence 1 (Sorted)\n");
         for(int i=0;i<maxitems_in_seq;i++){
                 printf("%f \n",rnd_seq1[i]);
@@ -94,9 +99,11 @@ int main(int argc,char *argv[]){
         for(int i=0;i<maxitems_in_seq;i++){
                 printf("%f \n",rnd_seq2[i]);
         }
+	*/
 
 	//http://www.leetcode.com/2010/03/here-is-phone-screening-question-from.html
 
+	printf("\nComparing the two sequences....\n");
 	findCommon(rnd_seq1,rnd_seq2,maxitems_in_seq);
 
 
@@ -120,15 +127,15 @@ void  findCommon(double A[], double B[], int iter) {
         int count =0;
   	while (i < iter && j < iter) {
     		if (A[i] > B[j]) {
-        		printf ( "%f > %f",A[i],B[j]);
-			printf("\ta is greater\n");
+        //		printf ( "%f > %f",A[i],B[j]);
+	//		printf("\ta is greater\n");
       			j++;
     		} else if (B[j] > A[i]) {
-        		printf ( "%f < %f",A[i],B[j]);
-			printf("\tb is greater\n");
+        //		printf ( "%f < %f",A[i],B[j]);
+	//		printf("\tb is greater\n");
       			i++;
     		} else {
-			printf("\t Found common %d\n", A[i]);
+	//		printf("\t Found common %d\n", A[i]);
       			i++;
       			j++;
 			count++;
@@ -138,7 +145,7 @@ void  findCommon(double A[], double B[], int iter) {
 	if (count == 0) {
 
 		 printf("\t ##########################################################################################\n");
-		 printf("\t There are no common items found  between the two generated sequence each of length %d\n",count,iter);
+		 printf("\t There are no common items found  between the two generated sequence each of length %d\n",iter);
 		 printf("\t ##########################################################################################\n");
 	} else {
 
