@@ -14,4 +14,4 @@ unif_graph:randAdv_test
 	gnuplot ../scripts/r1m.p
 
 clean: 
-	rm -f r10m.out r1m.out *.gif *.png core* randAdv_test randNumSeq_compare sim	
+	rm -f *.out *.gif *.png core* *.dat ../scripts/sim*.p randAdv_test randNumSeq_compare sim	
