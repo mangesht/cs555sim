@@ -13,5 +13,7 @@ unif_graph:randAdv_test
 	./randAdv_test -d 1000 -i 1000000 > r1m.out
 	gnuplot ../scripts/r1m.p
 
+variance: variance.cpp
+	g++ -o utils_variance variance.cpp 
 clean: 
-	rm -f *.out *.gif *.png core* *.dat ../scripts/sim*.p randAdv_test randNumSeq_compare sim	
+	rm -f *.out *.gif *.png core* *.dat ../scripts/sim*.p randAdv_test randNumSeq_compare sim utils_variance	
