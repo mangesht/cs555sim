@@ -8,6 +8,7 @@
 #define BUFFER_SIZE 5
 #define MAX_SIM_RUNS 30 
 #define NUM_OBSEVATIONS 50000
+#define MAX_CUST (NUM_SERVERS + BUFFER_SIZE)
 
 LinkedList el; // This is event list sorted  
 Server *server[NUM_SERVERS];
@@ -23,15 +24,26 @@ double serviceRate = 1.0;
 int initialNumCust = 0 ; 
 int bufferSize = 5;
 double simEndTime = 10.0;
+double simEndTimeArg = 10.0;
 double statCollectInterval = 0.05;
 int statCollectIdx = 0;
 int simIdx = 0 ; 
-int numCustomers[MAX_SIM_RUNS][NUM_OBSEVATIONS];
+int numCustomers[NUM_OBSEVATIONS];
 double avgNumCustomers[NUM_OBSEVATIONS]; 
 int windowSize = 5;
 long num_iterations = 20;
 double sIdleTime[NUM_SERVERS];
 double sIdlingStartTime[NUM_SERVERS];
+int mode = 0;
+double stationaryStateTime = 0;
+double *blockingProb;
+double *meanTimeCustSpend;
+double *meanNumCustomers;
+int numArrivals=0;
+int numBlocked=0;
+int numAllowedCust = 0;
+double totTimeSpent = 0 ;
+double *numCustHist;
 
 char *outFileName;
 
@@ -41,32 +53,46 @@ void startServicing();
 void processArrival(Event *ep);
 void processServiced(Event *ep);
 void reset();
-void calc_mean();
+void calc_mean_avg_cust();
 void filter_lpf(int windowSize);
 void print_to_file(char*);
+void reset_stats();
+void calc_stat_param();
+void solve_problem();
+double calc_s2n(double *x,double xbn);
+double calc_xbn(double *x);
+
 void collectStat() {
     Event *ecstat;
     int num_cust=0;
     int i;
-    // Collect the statistical information
-    num_cust = pktBuffer->curSize;
-    for(i=0;i<NUM_SERVERS;i++){
-        if(server[i]->status == BUSY) num_cust++;
+    if(mode == 0 || (mode == 1 && curTime > stationaryStateTime)){
+       // Collect the statistical information
+       num_cust = pktBuffer->curSize;
+       for(i=0;i<NUM_SERVERS;i++){
+           if(server[i]->status == BUSY) num_cust++;
+       }
+       if(mode == 0 ) { 
+           avgNumCustomers[statCollectIdx] += num_cust;    
+            numCustomers[statCollectIdx] = num_cust;
+       }
+       numCustHist[num_cust]++;
+       statCollectIdx++;
     }
-    avgNumCustomers[statCollectIdx] += num_cust;    
-    statCollectIdx++;
     // Add new stat collect event 
     ecstat = new Event();
     ecstat->schedTime = curTime + statCollectInterval ; 
     ecstat->eventType = COLLECT_STAT;
     el.insert_sort(ecstat);
-    printf("Added data collection event %lf \n",ecstat->schedTime);
+    if(debug) printf("Added data collection event %lf \n",ecstat->schedTime);
 
 }
 
 void display_help(){
    printf("\n Usage : sim [-s1 seed] [-s2 seed] [-s3 seed][-lambda lambda] [-u mu] [-ic initialNumCust] [-et simEndTime]\n");
-   printf("[-w windowSize] [-itr num_iterations] [-h] [-sci statCollectInterval");
+   printf("[-w windowSize] [-itr num_iterations] [-h] [-sci statCollectInterval\n");
+   printf("[-mode modeval] [-sts stationary_stateTime] \n");
+   printf("modeval 0 : For Finding out stationary region \n\t 1 : For find stationary region parameters\n");
 }
 int main(int argc,char *argv[]){
 
@@ -115,7 +141,7 @@ int main(int argc,char *argv[]){
         }
         if(strstr(p,"-et")!=NULL){
             if(argc > agcCount+1) {
-               simEndTime  = ator(argv[agcCount+1]);
+               simEndTimeArg  = ator(argv[agcCount+1]);
                agcCount++;
             }
         }
@@ -147,6 +173,18 @@ int main(int argc,char *argv[]){
                agcCount++;
             }
         }
+        if(strstr(p,"-mode")!=NULL){
+            if(argc > agcCount+1) {
+                mode = atoi(argv[agcCount+1]);
+                agcCount++;
+            }
+        }
+        if(strstr(p,"-sts")!=NULL){
+            if(argc > agcCount+1) {
+               stationaryStateTime  = ator(argv[agcCount+1]);
+               agcCount++;
+            }
+        }
 
 
         agcCount++;
@@ -163,41 +201,76 @@ int main(int argc,char *argv[]){
         //server[i].rng->randomize_seed(-1); // Mangesh Fix this
     }
     
+    blockingProb = (double *) malloc(num_iterations*sizeof(double));
+    meanTimeCustSpend = (double *) malloc(num_iterations*sizeof(double));
+    meanNumCustomers = (double *) malloc(num_iterations*sizeof(double));
+    numCustHist = (double *) malloc((MAX_CUST+1)*sizeof(double));
     reset();
+    simEndTime = simEndTimeArg;
     for(numSim=0;numSim<num_iterations;numSim++) { 
+            if(mode == 1) {
+                simEndTime = simEndTimeArg * (numSim+1); 
+            }
+            printf("--------------------------------------------------------------\n"); 
+            printf("Starting simulation  : \n");
+            if(mode == 0) {
+                printf("for finding stationary region\n");
+            }else{
+                printf("for finding statastical parameters in stationary region\n");
+            }
+            printf("Number of servers = %d Buffer Size = %d \n",NUM_SERVERS,bufferSize);
+            printf("Arrival rate = %3.2lf customers/Second Service Rate = %3.2lf customers/second \n",arrivalRate,serviceRate);
+            printf("Initial number of customers in system %d \n",initialNumCust);
+            printf("Simulation End time = %0.2lf \n",simEndTime);
+            if(mode == 0) {
+            }else{
+                printf("Station state achieved after %lf seconds\n",stationaryStateTime);
+            }
+            printf("--------------------------------------------------------------\n"); 
+            
+            if(mode == 0 || numSim == 0 ) {
+                initialize();
+            }else{
+                reset_stats();
+            }
 
-    printf("--------------------------------------------------------------\n"); 
-    printf("Starting simulation with : \n");
-    printf("Number of servers = %d Buffer Size = %d \n",NUM_SERVERS,bufferSize);
-    printf("Arrival rate = %3.2lf customers/Second Service Rate = %3.2lf customers/second \n",arrivalRate,serviceRate);
-    printf("Initial number of customers in system %d \n",initialNumCust);
-    printf("Simulation End time = %0.2lf \n",simEndTime);
-    printf("--------------------------------------------------------------\n"); 
-    initialize();
-
-    while(curTime < simEndTime) {
-        ep = el.pop();
-        curTime = ep->schedTime;
-        printf("Time : %lf \n",curTime);
-        processEvent(ep);
-        if(debug) printf("processEvent ended \n");
-        free(ep);
-        startServicing();
-        if(debug) printf("Service Ended \n");
-    } 
-    
-    for(i=0;i<NUM_SERVERS;i++){
-        printf("Server %d Idle time = %lf \n",i,sIdleTime[i]);
+            while(curTime < simEndTime) {
+                ep = el.pop();
+                curTime = ep->schedTime;
+                if(debug) printf("Time : %lf \n",curTime);
+                processEvent(ep);
+                if(debug) printf("processEvent ended \n");
+                free(ep);
+                startServicing();
+                if(debug) printf("Service Ended \n");
+            } 
+            
+            for(i=0;i<NUM_SERVERS;i++){
+                if(debug) printf("Server %d Idle time = %lf \n",i,sIdleTime[i]);
+            }
+            if(mode == 1) { 
+                calc_stat_param();
+                reset_stats();
+            }
+            simIdx++;
     }
-    simIdx++;
-    }
 
-    calc_mean();
-    filter_lpf(windowSize);
     char *prefix;
     prefix = (char *) malloc(256); 
-    sprintf(prefix,"i%d_w%d",initialNumCust,windowSize);
-    print_to_file(prefix);
+    if(mode == 0 ) {
+        printf("Writing to file \n");
+        calc_mean_avg_cust();
+        filter_lpf(windowSize);
+        sprintf(prefix,"i%d_w%d",initialNumCust,windowSize);
+        print_to_file(prefix);
+    }else if(mode ==1 ) { 
+        printf("Iteration Blocking  Mean Time Customer      Mean Number of\n");
+        printf(" Index      Prob      spend in System          Customers\n");
+        for(i=0;i<simIdx;i++){
+            printf("%d\t%lf \t%lf \t\t%lf \n",i+1,blockingProb[i],meanTimeCustSpend[i],meanNumCustomers[i]);
+        }
+        solve_problem();
+    }
     printf("Total number of iterations = %d \n",simIdx);
 
     return 0;
@@ -237,7 +310,7 @@ void initialize(){
                 server[i]->servP = p;
                 server[i]->status = BUSY;
                 sIdleTime[i] += curTime - sIdlingStartTime[i];
-                printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,i,ep->schedTime);
+                if(debug) printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,i,ep->schedTime);
 
          }else{
                // Add this packet to buffer
@@ -245,9 +318,9 @@ void initialize(){
               p->arrivalTime = curTime;
               ret = pktBuffer->push(p);
               if(ret<0){
-                   printf("Packet is dropped,Buffer Full\n");
+                   if(debug) printf("Packet is dropped,Buffer Full\n");
               }else{
-                   printf("Packet pushed to pktBuffer \n");
+                   if(debug) printf("Packet pushed to pktBuffer \n");
               }
          }
     }
@@ -257,12 +330,12 @@ void initialize(){
     ep->schedTime = curTime + ar ; 
     ep->eventType = ARRIVAL;
     el.insert_sort(ep);
-    printf("Added arrival for time %lf \n",ep->schedTime);
+    if(debug) printf("Added arrival for time %lf \n",ep->schedTime);
     collectStat();
 }
 
 void processEvent(Event *ep){
-    printf("Processing event %d \n",ep->eventType);
+    if(debug) printf("Processing event %d \n",ep->eventType);
     switch(ep->eventType){
         case ARRIVAL : processArrival(ep);break;
         case SERVICED : processServiced(ep);break;
@@ -278,10 +351,13 @@ void processArrival(Event *ep){
     p = (struct Packet *) malloc(sizeof(struct Packet));
     p->arrivalTime = curTime;
     ret = pktBuffer->push(p);
+    numArrivals++;
     if(ret<0){
-        printf("Packet is dropped,Buffer Full\n");
+        if(debug) printf("Packet is dropped,Buffer Full\n");
+        numBlocked++;
     }else{
-        printf("Packet pushed to pktBuffer \n");
+        if(debug) printf("Packet pushed to pktBuffer \n");
+        numAllowedCust++;
     }
 
     // Plan next arrival 
@@ -290,13 +366,14 @@ void processArrival(Event *ep){
     earp->schedTime = curTime + ar ; 
     earp->eventType = ARRIVAL;
     el.insert_sort(earp);
-    printf("Added arrival for time %lf \n",earp->schedTime);
+    if(debug) printf("Added arrival for time %lf \n",earp->schedTime);
 }
 
 void processServiced(Event *ep){
     if(debug) printf("processServiced %d \n",ep->serverId);
     server[ep->serverId]->status = IDLE;
     sIdlingStartTime[ep->serverId] = curTime;
+    totTimeSpent += curTime - server[ep->serverId]->servP->arrivalTime; 
     free(server[ep->serverId]->servP); 
     if(debug) printf("processServiced end\n");
     //server[ep->serverId]->servP.serviceFinishTime = curTime; // This can used for stats
@@ -328,7 +405,7 @@ void startServicing(){
                 server[idx]->servP = p;
                 server[idx]->status = BUSY;
                 sIdleTime[idx] += curTime - sIdlingStartTime[idx];
-                printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,idx,ep->schedTime);
+                if(debug) printf("Service started for packet aTime = %lf by server = %d to be over by %lf\n",p->arrivalTime,idx,ep->schedTime);
             }
         }
         idx++;
@@ -343,14 +420,20 @@ void reset(){
     for(i=0;i<NUM_OBSEVATIONS;i++){
         avgNumCustomers[i] = 0.0;
     }
-    for(j=0;j<MAX_SIM_RUNS;j++){
-        for(i=0;i<NUM_OBSEVATIONS;i++){
-            numCustomers[j][i] = 0;
-        }
+    for(i=0;i<NUM_OBSEVATIONS;i++){
+        numCustomers[i] = 0;
+    }
+    for(i=0;i<num_iterations;i++){
+        blockingProb[i] = 0 ;
+        meanTimeCustSpend[i] = 0 ;
+        meanNumCustomers[i] = 0 ;
+    }
+    for(i=0;i<=MAX_CUST;i++){
+        numCustHist[i] = 0;
     }
 }
 
-void calc_mean(){
+void calc_mean_avg_cust(){
     int i ; 
     for(i=0;i<statCollectIdx;i++){
         avgNumCustomers[i] = avgNumCustomers[i] / simIdx;
@@ -383,13 +466,112 @@ void print_to_file(char *postFix){
             strcat(fName,postFix);
     strcat(fName,"avg.dat"); 
     fp = fopen(fName,"w");
-    printf("Printting data for %d \n",statCollectIdx);
+    if(debug) printf("Printting data for %d \n",statCollectIdx);
     if(fp == NULL) {
-        printf("Could not open %s \n",fName);
+        printf("ERROR: Could not open %s \n",fName);
     }
-    for(i=0;i<statCollectIdx-10;i++){
+    for(i=0;i<statCollectIdx-windowSize;i++){
         fprintf(fp,"%lf %lf\n",statCollectInterval*i,avgNumCustomers[i]);
     }
     fclose(fp); 
 }
 
+void reset_stats(){
+    int i;
+    numBlocked = 0;
+    numArrivals = 0 ; 
+    totTimeSpent = 0 ; 
+    numAllowedCust = 0 ;
+    for(i=0;i<NUM_OBSEVATIONS;i++){
+        numCustomers[i] = 0 ;
+    }
+    statCollectIdx = 0 ;
+    for(i=0;i<=MAX_CUST;i++){
+        numCustHist[i] = 0;
+    }
+}
+
+void calc_stat_param(){
+
+    int i;
+    double tCust = 0;
+    double meanTh=0;
+    double tsum = 0;
+    blockingProb[simIdx] = (double) numBlocked / (double) numArrivals ; 
+    meanTimeCustSpend[simIdx] = totTimeSpent / (double) numAllowedCust ;
+    //for(i=0;i<statCollectIdx;i++){
+    //    tCust += numCustomers[i];
+    //}
+   // meanNumCustomers[simIdx] = tCust/statCollectIdx;
+
+    for(i=0;i<=MAX_CUST;i++){
+        tsum +=numCustHist[i];
+    }
+    for(i=0;i<=MAX_CUST;i++){
+        meanTh += (i * numCustHist[i])/tsum;
+    }
+    meanNumCustomers[simIdx] = meanTh;
+    //printf("The 2 means are %lf Th %lf \n",meanNumCustomers[simIdx],meanTh); 
+    
+}
+void solve_problem(){
+    double xbn;
+    double s2n;
+    double sqrt_s2n_o_n;
+    double conf_level = 90 ;
+    double alpha ;
+    double z_alpha_b_2  = 1.645;
+    double int_b2;
+
+    xbn = calc_xbn(blockingProb);
+    //printf("xbn = %lf \n",xbn);
+    s2n = calc_s2n(blockingProb,xbn);
+    //printf("s2n = %lf \n",s2n);
+    sqrt_s2n_o_n = sqrt(s2n/simIdx);
+    alpha = (100 - conf_level) / 100 ;
+    int_b2 = z_alpha_b_2 * sqrt_s2n_o_n;
+    printf("Mean blocking probability \nconfidence internal = %lf to %lf with %lf confidence level. mean = %lf  \n",xbn-int_b2,xbn+int_b2,conf_level,xbn);
+
+    // For Mean time customers spend in system 
+    xbn = calc_xbn(meanTimeCustSpend);
+    //printf("xbn = %lf \n",xbn);
+    s2n = calc_s2n(meanTimeCustSpend,xbn);
+    //printf("s2n = %lf \n",s2n);
+    sqrt_s2n_o_n = sqrt(s2n/simIdx);
+    alpha = (100 - conf_level) / 100 ;
+    int_b2 = z_alpha_b_2 * sqrt_s2n_o_n;
+    printf("Mean Time customers spend in system \n confidence internal = %lf to %lf with %lf confidence level. mean = %lf  \n",xbn-int_b2,xbn+int_b2,conf_level,xbn);
+
+    // For Mean number of customers in system 
+    xbn = calc_xbn(meanNumCustomers);
+    s2n = calc_s2n(meanNumCustomers,xbn);
+    sqrt_s2n_o_n = sqrt(s2n/simIdx);
+    alpha = (100 - conf_level) / 100 ;
+    int_b2 = z_alpha_b_2 * sqrt_s2n_o_n;
+    printf("Mean Number Of Customers in system \n confidence internal = %lf to %lf with %lf confidence level. mean = %lf  \n",xbn-int_b2,xbn+int_b2,conf_level,xbn);
+
+
+}
+
+double calc_xbn(double *x){
+    double tsum;
+    int i;
+    tsum = 0;
+    for(i = 0 ; i < simIdx;i++){
+        tsum += x[i];
+    }
+    tsum = tsum / simIdx;
+    return tsum;
+}
+double calc_s2n(double *x,double xbn){
+    double tsum;
+    int i;
+    tsum = 0;
+    printf("SimIdx = %lf \n",(double)simIdx);
+    for(i = 0 ; i < simIdx;i++){
+        tsum += pow((x[i] - xbn),2.0);
+        //printf("tsum %lf pow  = %lf \n",tsum,pow((x[i] - xbn),2.0));
+    }
+    tsum = tsum / (double)(simIdx-1);
+    return tsum;
+}
