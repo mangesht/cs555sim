@@ -27,6 +27,7 @@ int main(int argc,char *argv[]){
     int j;
     int agcCount = 1;
     char *p;
+    double r_max;
     RandomGen rng(seed);
     
     seed = 0 ;
@@ -67,6 +68,12 @@ int main(int argc,char *argv[]){
                     return -1;
                 }
             }
+            if(strchr(p,'h') != NULL) {
+                // Seed
+                    display_help();
+                    return -1;
+            }
+
 
         }
         agcCount++;
