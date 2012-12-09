@@ -93,6 +93,16 @@ void display_help(){
    printf("[-w windowSize] [-itr num_iterations] [-h] [-sci statCollectInterval\n");
    printf("[-mode modeval] [-sts stationary_stateTime] \n");
    printf("modeval 0 : For Finding out stationary region \n\t 1 : For find stationary region parameters\n");
+   printf("\nseed : This value is used as seed for random number generator. s1 seed is used for input stream random number generator.\ns2 and s3 seeds are used for server 1 and server 2 random generator respectively.");
+  printf("\nlambda : This value maps to arrival rate of customers in the system.\n");
+  printf("mu     : This value maps to service rate of the servers in the system.\n");
+  printf("initialNumCust : This represents intial number of customers in the system\n");
+  printf("simEndTime     : This time is used to find out end of simulation. When the current simulation exceeds this time, the simulator stops\n");
+  printf("windowSize     : Windowsize used for calculation of moving window averages \n");
+  printf("num_iterations : The number of iterations for which an simulation needs to be run\n");
+  printf("statCollectInterval : The system parameters like mean number of customers are sampled at an interval represented by this parameter\n"); 
+  printf("modeval       : This parameter decides the mode of simulator.\n 0:\t The simulation is run for finding out warming up period for the system.\n 1:\t This simulation is run for finding out stationary state system parameters like mean number of customers, blocking probability , etc. \n There is no difference in these modes as far running the simulation is concerned. The mode just affects the stats collection functions.\n");
+ printf("-h \t: Shows the help for the simulator\n");
 }
 int main(int argc,char *argv[]){
 
